@@ -46,8 +46,8 @@ launcher.
 ### From source
 
     pip install -r requirements.txt
-    python shapes_v10-1.py              # in its own window
-    python shapes_v10-1.py --terminal   # in this terminal
+    python shapes_v10-2.py              # in its own window
+    python shapes_v10-2.py --terminal   # in this terminal
 
 `pygame-ce` gives the window (plain `pygame` works too, but has no
 installs for Python 3.14 and newer); without it the program runs in the
@@ -120,12 +120,13 @@ to the defaults.
 
 ## Versions
 
-`shapes_v10-1.py` is the current version, a single self-contained file.
+`shapes_v10-2.py` is the current version, a single self-contained file.
 Each version is developed as a new numbered copy; older ones are kept
 outside the repo (they are still in the git history).
 
 Up to v10 the project was called ASCII 3D Shapes. Settings saved under that
-name (in an `ASCII3DShapes` folder) are picked up the first time v10.1 runs.
+name (in an `ASCII3DShapes` folder) are picked up the first time a newer
+version runs.
 
 ## Build
 
@@ -138,7 +139,7 @@ or `./build_mac.sh` on a Mac. The result is in `dist/`: a folder with
 `ShapeRunner.app` on macOS, and a `ShapeRunner` folder on Linux.
 
 GitHub Actions builds all three and test-starts each one whenever a version
-tag is pushed (`git tag v10.1 && git push origin v10.1`), or when **Build
+tag is pushed (`git tag v10.2 && git push origin v10.2`), or when **Build
 apps** is run by hand from the Actions tab. It also tests the installer on
 each system.
 
@@ -146,3 +147,21 @@ The spec builds the version named in its `SCRIPT` line, so update that line
 when a newer version should ship. `pyproject.toml` names it too, for the pip
 package, which **Publish to PyPI** on the Actions tab uploads when run by
 hand.
+
+## License
+
+Copyright (C) 2026 RFrank
+
+ShapeRunner is free software: you can redistribute it and/or modify it
+under the terms of the GNU General Public License as published by the Free
+Software Foundation, either version 3 of the License, or (at your option)
+any later version. It comes with no warranty. See [LICENSE](LICENSE) for
+the full text.
+
+The pictures and recordings you make with ShapeRunner are yours; the
+license covers the program, not what it draws.
+
+The ready-made apps also include other open-source software (Python, NumPy,
+pygame-ce with SDL, PortAudio and others), each under its own license. Each
+app carries their license texts in `THIRD_PARTY_NOTICES.txt`; see
+[licenses/README.md](licenses/README.md) for where they come from.

@@ -1,6 +1,27 @@
 #!/usr/bin/env python3
+# ShapeRunner: rotating 3D shapes drawn in ASCII
+# Copyright (C) 2026 RFrank
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
-shapes_v10-1.py – ShapeRunner: rotating 3D shapes drawn in ASCII
+shapes_v10-2.py – ShapeRunner: rotating 3D shapes drawn in ASCII
+
+v10.2 (2026-11)
+    - Free software under the GNU GPL, version 3 or later. The help
+      screen and --version show the copyright, license and source link
+    - The hint for a missing window library names pygame-ce, which has
+      installs for every current Python
 
 v10.1 (2026-11)
     - The program is now called ShapeRunner: window title, app names and
@@ -57,7 +78,11 @@ from collections import deque
 from typing import List, Tuple, Callable, Optional
 
 APP_NAME = "ShapeRunner"
-APP_VERSION = "10.1"
+APP_VERSION = "10.2"
+COPYRIGHT = "Copyright (C) 2026 RFrank"
+SOURCE_URL = "https://github.com/wolfybird/shaperunner"
+LICENSE_LINES = ["Free software under the GNU GPL v3 or later, with NO WARRANTY.",
+                 "Source and license: " + SOURCE_URL]
 
 HAS_AUDIO = False
 try:
@@ -1818,7 +1843,9 @@ def overlay_content(ov, settings, frontend):
     else:
         title = "Help"
         rows = [(line, None, False) for line in HELP_LINES]
-        footer = ["Any key or click closes this"]
+        footer = [f"{APP_NAME} v{APP_VERSION}  {COPYRIGHT}",
+                  *LICENSE_LINES,
+                  "Any key or click closes this"]
     return title, rows, footer
 
 
@@ -3024,7 +3051,7 @@ def window_unavailable():
         os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")
         import pygame  # noqa: F401
     except ImportError:
-        return "pygame is not installed (pip install pygame)"
+        return "pygame is not installed (pip install pygame-ce)"
     if sys.platform.startswith("linux") and not (
             os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")):
         return "no graphical display was found"
@@ -3081,8 +3108,14 @@ def main():
     mode_group.add_argument("--terminal", action="store_true",
                             help="draw in this terminal instead")
     parser.add_argument("--panel", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--version", action="store_true",
+                        help="show the version and license, then quit")
     parser.add_argument("--selftest", action="store_true", help=argparse.SUPPRESS)
     args, _ = parser.parse_known_args()  # macOS may add -psn_... from Finder
+
+    if args.version:
+        print("\n".join([f"{APP_NAME} {APP_VERSION}", COPYRIGHT, *LICENSE_LINES]))
+        return
 
     if args.panel:
         run_panel()

@@ -50,6 +50,17 @@ jobs:
                      dist/ShapeRunner/ShapeRunner --selftest ;;
           esac
 
+      - name: Check the license files are in the app
+        shell: bash
+        run: |
+          case "$RUNNER_OS" in
+            macOS) dir=dist/ShapeRunner.app/Contents/Resources ;;
+            *)     dir=dist/ShapeRunner ;;
+          esac
+          ls -l "$dir/LICENSE.txt" "$dir/THIRD_PARTY_NOTICES.txt"
+          echo "Notices cover:"
+          grep -A1 '^=====' "$dir/THIRD_PARTY_NOTICES.txt" | grep -v -e '^=' -e '^--' -e '^$'
+
       - name: Package
         shell: bash
         run: |
