@@ -7,10 +7,26 @@ or runs in a terminal. CPU only: Python and NumPy.
 
 ## Get it
 
+### With pip
+
+With Python 3.10 or newer:
+
+    pip install shaperunner
+    shaperunner              # in its own window
+    shaperunner --terminal   # in this terminal
+
+`pip install --upgrade shaperunner` updates it. If pip refuses because the
+environment is "externally managed" (Homebrew Python on macOS, recent
+Ubuntu and Debian), use [pipx](https://pipx.pypa.io) instead:
+`pipx install shaperunner`. On Linux, audio mode also needs PortAudio
+(`sudo apt install libportaudio2`).
+
 ### Ready-made apps
 
-GitHub Actions builds the apps (see [Build](#build)). Open the latest
-**Build apps** run on the Actions tab and download the file for your system:
+No Python needed. GitHub Actions builds the apps (see [Build](#build)).
+Open the latest run on the [Build apps](https://github.com/wolfybird/shaperunner/actions/workflows/build.yml)
+page and download the file for your system (downloads need a free GitHub
+account):
 
 | System | File | Start it |
 |---|---|---|
@@ -155,7 +171,7 @@ Copyright (C) 2026 RFrank
 ShapeRunner is free software: you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the Free
 Software Foundation, either version 3 of the License, or (at your option)
-any later version. It comes with no warranty. See [LICENSE](LICENSE) for
+any later version. It comes with no warranty. See [LICENSE](https://github.com/wolfybird/shaperunner/blob/main/LICENSE) for
 the full text.
 
 The pictures and recordings you make with ShapeRunner are yours; the
@@ -164,4 +180,4 @@ license covers the program, not what it draws.
 The ready-made apps also include other open-source software (Python, NumPy,
 pygame-ce with SDL, PortAudio and others), each under its own license. Each
 app carries their license texts in `THIRD_PARTY_NOTICES.txt`; see
-[licenses/README.md](licenses/README.md) for where they come from.
+[licenses/README.md](https://github.com/wolfybird/shaperunner/blob/main/licenses/README.md) for where they come from.
