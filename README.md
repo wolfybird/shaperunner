@@ -49,7 +49,9 @@ launcher.
     python shapes_v10-1.py              # in its own window
     python shapes_v10-1.py --terminal   # in this terminal
 
-`pygame` gives the window; without it the program runs in the terminal.
+`pygame-ce` gives the window (plain `pygame` works too, but has no
+installs for Python 3.14 and newer); without it the program runs in the
+terminal.
 `sounddevice` is optional and needs PortAudio, which Linux may need
 installed (`sudo apt install libportaudio2`). The terminal version needs
 256-color ANSI support (Windows Terminal, macOS Terminal, iTerm2, most
@@ -141,4 +143,6 @@ apps** is run by hand from the Actions tab. It also tests the installer on
 each system.
 
 The spec builds the version named in its `SCRIPT` line, so update that line
-when a newer version should ship.
+when a newer version should ship. `pyproject.toml` names it too, for the pip
+package, which **Publish to PyPI** on the Actions tab uploads when run by
+hand.
