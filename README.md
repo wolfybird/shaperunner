@@ -62,8 +62,8 @@ launcher.
 ### From source
 
     pip install -r requirements.txt
-    python shapes_v10-2.py              # in its own window
-    python shapes_v10-2.py --terminal   # in this terminal
+    python shapes_v10-3.py              # in its own window
+    python shapes_v10-3.py --terminal   # in this terminal
 
 `pygame-ce` gives the window (plain `pygame` works too, but has no
 installs for Python 3.14 and newer); without it the program runs in the
@@ -136,7 +136,7 @@ to the defaults.
 
 ## Versions
 
-`shapes_v10-2.py` is the current version, a single self-contained file.
+`shapes_v10-3.py` is the current version, a single self-contained file.
 Each version is developed as a new numbered copy; older ones are kept
 outside the repo (they are still in the git history).
 
@@ -155,7 +155,7 @@ or `./build_mac.sh` on a Mac. The result is in `dist/`: a folder with
 `ShapeRunner.app` on macOS, and a `ShapeRunner` folder on Linux.
 
 GitHub Actions builds all three and test-starts each one whenever a version
-tag is pushed (`git tag v10.2 && git push origin v10.2`), or when **Build
+tag is pushed (`git tag v10.3 && git push origin v10.3`), or when **Build
 apps** is run by hand from the Actions tab. It also tests the installer on
 each system.
 

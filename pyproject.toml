@@ -38,14 +38,14 @@ Issues = "https://github.com/wolfybird/shaperunner/issues"
 shaperunner = "shaperunner:main"
 
 [tool.hatch.version]
-path = "shapes_v10-2.py"                                    # CURRENT
+path = "shapes_v10-3.py"                                    # CURRENT
 pattern = 'APP_VERSION = "(?P<version>[^"]+)"'
 
 [tool.hatch.build.targets.wheel]
 bypass-selection = true
 
 [tool.hatch.build.targets.wheel.force-include]
-"shapes_v10-2.py" = "shaperunner.py"                        # CURRENT
+"shapes_v10-3.py" = "shaperunner.py"                        # CURRENT
 
 [tool.hatch.build.targets.sdist]
-include = ["/shapes_v10-2.py", "/README.md", "/LICENSE", "/pyproject.toml"]   # CURRENT
+include = ["/shapes_v10-3.py", "/README.md", "/LICENSE", "/pyproject.toml"]   # CURRENT

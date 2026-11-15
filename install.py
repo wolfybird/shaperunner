@@ -151,9 +151,14 @@ def main():
         audio_note = "Audio mode is off: sounddevice didn't install."
         say(f"  Skipped. The program works without it.\n    {err}")
     elif not runs([py, "-c", "import sounddevice"]):
-        audio_note = "Audio mode is off until PortAudio is installed."
-        if sys.platform.startswith("linux"):
-            audio_note += " On Ubuntu, Debian or Mint:  sudo apt install libportaudio2"
+        if runs([py, "-c", "import ctypes.util, sys; "
+                 "sys.exit(not ctypes.util.find_library('portaudio'))"]):
+            audio_note = ("Audio mode is off: PortAudio is installed but couldn't "
+                          "start (is a sound server running?).")
+        else:
+            audio_note = "Audio mode is off until PortAudio is installed."
+            if sys.platform.startswith("linux"):
+                audio_note += " On Ubuntu, Debian or Mint:  sudo apt install libportaudio2"
         say(f"  Installed, but it can't load yet. {audio_note}")
     else:
         say("  Done.")

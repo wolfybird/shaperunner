@@ -15,7 +15,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
-shapes_v10-2.py – ShapeRunner: rotating 3D shapes drawn in ASCII
+shapes_v10-3.py – ShapeRunner: rotating 3D shapes drawn in ASCII
+
+v10.3 (2026-11)
+    - Starts with audio off instead of crashing when PortAudio is installed
+      but can't start (Linux with no sound server running, e.g. over SSH);
+      the audio menu says why
 
 v10.2 (2026-11)
     - Free software under the GNU GPL, version 3 or later. The help
@@ -71,6 +76,7 @@ import random
 import shutil
 import subprocess
 import sys
+import textwrap
 import time
 import threading
 import traceback
@@ -78,7 +84,7 @@ from collections import deque
 from typing import List, Tuple, Callable, Optional
 
 APP_NAME = "ShapeRunner"
-APP_VERSION = "10.2"
+APP_VERSION = "10.3"
 COPYRIGHT = "Copyright (C) 2026 RFrank"
 SOURCE_URL = "https://github.com/wolfybird/shaperunner"
 LICENSE_LINES = ["Free software under the GNU GPL v3 or later, with NO WARRANTY.",
@@ -107,12 +113,15 @@ if getattr(sys, "frozen", False) and sys.platform.startswith("linux"):
 
     ctypes.util.find_library = _find_library
 
+AUDIO_ERROR = ""        # why PortAudio failed to start, for the audio menu
 try:
     import sounddevice as sd
     if HAS_NUMPY:
         HAS_AUDIO = True
 except (ImportError, OSError):  # OSError: PortAudio library not found
     pass
+except Exception as e:          # PortAudio is there but can't start, e.g. no
+    AUDIO_ERROR = str(e)        # sound server on Linux (sd.PortAudioError)
 
 if not HAS_NUMPY:
     print(f"{APP_NAME} needs numpy: pip install numpy")
@@ -1816,7 +1825,15 @@ def overlay_content(ov, settings, frontend):
                   "Up/Down select  Left/Right change  Enter run  x close"]
     elif ov.mode == "audio":
         title = "Audio input device"
-        if not HAS_AUDIO:
+        if not HAS_AUDIO and AUDIO_ERROR:
+            rows.append(("PortAudio is installed but couldn't start:", None, False))
+            detail = AUDIO_ERROR.replace("Error initializing PortAudio: ", "")
+            for line in textwrap.wrap(detail, 62)[:3]:
+                rows.append(("  " + line, None, False))
+            if sys.platform.startswith("linux"):
+                rows.append(("Is a sound server (PipeWire or PulseAudio) running?",
+                             None, False))
+        elif not HAS_AUDIO:
             rows.append(("Audio needs the sounddevice package and PortAudio.",
                          None, False))
             if sys.platform.startswith("linux"):

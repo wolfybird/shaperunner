@@ -34,12 +34,15 @@ jobs:
           python -m build
           python -m twine check dist/*
 
-      # the self-test checks audio loads, which on Linux needs PortAudio
+      # PortAudio is installed but this runner has no sound server, so it
+      # can't start: the self-test must still pass, reporting audio as
+      # unavailable (exit code 2). A crash is exit code 1 and fails the run.
       - name: Install it and self-test
         run: |
           sudo apt-get update && sudo apt-get install -y libportaudio2
           python -m pip install dist/*.whl
-          shaperunner --selftest
+          shaperunner --version
+          shaperunner --selftest || test $? -eq 2
 
       - uses: actions/upload-artifact@v7
         with:

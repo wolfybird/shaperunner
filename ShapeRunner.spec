@@ -15,8 +15,8 @@ import sys
 from importlib import metadata
 
 APP = 'ShapeRunner'
-SCRIPT = 'shapes_v10-2.py'
-VERSION = '10.2'
+SCRIPT = 'shapes_v10-3.py'
+VERSION = '10.3'
 SOURCE_URL = 'https://github.com/wolfybird/shaperunner'
 
 # Python packages bundled in the app. Their own license files are read from
