@@ -154,15 +154,18 @@ or `./build_mac.sh` on a Mac. The result is in `dist/`: a folder with
 `ShapeRunner.exe` and `ShapeRunner-terminal.exe` on Windows,
 `ShapeRunner.app` on macOS, and a `ShapeRunner` folder on Linux.
 
-GitHub Actions builds all three and test-starts each one whenever a version
-tag is pushed (`git tag v10.3 && git push origin v10.3`), or when **Build
-apps** is run by hand from the Actions tab. It also tests the installer on
-each system.
+GitHub Actions builds all three, test-starts each one, checks their license
+files and tests the installer on each system. It does this for every pull
+request, whenever a version tag is pushed, and when **Build apps** is run by
+hand from the Actions tab.
 
-The spec builds the version named in its `SCRIPT` line, so update that line
-when a newer version should ship. `pyproject.toml` names it too, for the pip
-package, which **Publish to PyPI** on the Actions tab uploads when run by
-hand.
+When a newer version should ship, update the `SCRIPT` and `VERSION` lines in
+the spec and the three lines marked `CURRENT` in `pyproject.toml`.
+`python .github/check_versions.py` checks they agree with the script, and
+the build runs it too. A version tag must match the script's `APP_VERSION`
+(`git tag v10.4 && git push origin v10.4` for `"10.4"`); to rebuild a version
+without a new one, run **Build apps** by hand. **Publish to PyPI** on the
+Actions tab uploads the pip package when run by hand.
 
 ## License
 

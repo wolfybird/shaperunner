@@ -1,15 +1,36 @@
-# Builds ShapeRunner for Windows, macOS and Linux. Runs when a version
-# tag (v10.0, v10.1, ...) is pushed, or by hand from the Actions tab.
-# Each finished app is attached to the run as a download.
+# Builds ShapeRunner for Windows, macOS and Linux, tests each app and the
+# terminal installer. Runs for every pull request, when a version tag
+# (v10.4, v10.5, ...) is pushed, or by hand from the Actions tab. Each
+# finished app is attached to the run as a download.
 name: Build apps
 
 on:
   push:
     tags: ["v*"]
+  pull_request:
   workflow_dispatch:
 
+# a newer push to the same pull request cancels the run it replaces
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
+  # every file that names the current version agrees, and a version tag
+  # matches APP_VERSION (v10.4 for "10.4")
+  versions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - run: python .github/check_versions.py
+
   build:
+    needs: versions
     strategy:
       fail-fast: false
       matrix:
@@ -50,16 +71,16 @@ jobs:
                      dist/ShapeRunner/ShapeRunner --selftest ;;
           esac
 
-      - name: Check the license files are in the app
+      # LICENSE.txt matches the repo's; the notices cover every required part
+      # and, on Linux, the system packages bundled, with no text missing
+      - name: Check the license files in the app
         shell: bash
         run: |
           case "$RUNNER_OS" in
             macOS) dir=dist/ShapeRunner.app/Contents/Resources ;;
             *)     dir=dist/ShapeRunner ;;
           esac
-          ls -l "$dir/LICENSE.txt" "$dir/THIRD_PARTY_NOTICES.txt"
-          echo "Notices cover:"
-          grep -A1 '^=====' "$dir/THIRD_PARTY_NOTICES.txt" | grep -v -e '^=' -e '^--' -e '^$'
+          python .github/check_notices.py "$dir"
 
       - name: Package
         shell: bash
@@ -79,6 +100,7 @@ jobs:
   # The beginner installer on a clean machine of each OS, then the terminal
   # version it set up runs for a few seconds without errors
   installer:
+    needs: versions
     strategy:
       fail-fast: false
       matrix:
