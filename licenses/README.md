@@ -9,7 +9,8 @@ aren't installed with them:
   from its source at version 2.5.8: `docs/LGPL.txt` and `docs/licenses/`
   from https://github.com/pygame-community/pygame-ce/tree/2.5.8/docs. When
   the apps are built with a newer pygame-ce, refresh these files and update
-  `PYGAME_CE_LICENSES_FROM` in the spec (the build warns about a mismatch).
+  `PYGAME_CE_LICENSES_FROM` in the spec. The build stops when the minor
+  version differs (2.6 instead of 2.5) and warns about a newer patch release.
 - `portaudio.txt`: PortAudio's `LICENSE.txt` at v19.7.0, from
   https://github.com/PortAudio/portaudio.
 - `tcl.txt` and `tk.txt`: the `license.terms` of Tcl and Tk (8.6 branch),

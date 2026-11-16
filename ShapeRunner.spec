@@ -11,7 +11,9 @@ import os
 import platform
 import shutil
 import stat
+import subprocess
 import sys
+import sysconfig
 from importlib import metadata
 
 APP = 'ShapeRunner'
@@ -22,9 +24,12 @@ SOURCE_URL = 'https://github.com/wolfybird/shaperunner'
 # Python packages bundled in the app. Their own license files are read from
 # this machine's installed copies, so the notices match each OS's build.
 # pygame-ce's wheels carry no license files: licenses/pygame-ce has them,
-# taken from its source at the matching version.
+# taken from its source at PYGAME_CE_LICENSES_FROM. A different minor
+# version stops the build until they are refreshed (see licenses/README.md).
 BUNDLED_PACKAGES = ['numpy', 'pygame-ce', 'sounddevice', 'cffi', 'pycparser']
-PYGAME_CE_LICENSES_FROM = '2.5.8'       # see licenses/README.md
+PYGAME_CE_LICENSES_FROM = '2.5.8'
+# written into the notices when a license can't be found; CI fails on it
+NOT_FOUND = 'LICENSE TEXT NOT FOUND ON THE BUILD MACHINE'
 
 
 def read(path):
@@ -32,7 +37,46 @@ def read(path):
         return f.read()
 
 
-def third_party_notices():
+def python_license():
+    """Python's LICENSE.txt: next to python.exe on Windows, in the standard
+    library folder elsewhere (lib, lib64 or a free-threaded pythonX.Yt)."""
+    for folder in (sys.base_prefix, sysconfig.get_path('stdlib')):
+        path = os.path.join(folder, 'LICENSE.txt')
+        if os.path.isfile(path):
+            return read(path)
+    raise SystemExit("Python's LICENSE.txt was not found")
+
+
+def linux_system_libraries(binaries):
+    """The system libraries PyInstaller bundled on Linux, grouped by the
+    Debian package that installed them: ({package: [files]}, [unclaimed])."""
+    paths = {}
+    for dest, src, _ in binaries:
+        if (src.startswith(('/lib/', '/lib64/', '/usr/lib/', '/usr/lib64/'))
+                and 'site-packages' not in src):
+            paths[src] = os.path.basename(dest)
+    if not paths or not shutil.which('dpkg'):
+        return {}, sorted(paths.values())
+    # dpkg knows each file by the path its package installed; with a merged
+    # /usr that may be /lib/... or /usr/lib/..., and links point elsewhere
+    asked = {}
+    for p in paths:
+        for cand in {p, os.path.realpath(p)}:
+            asked[cand] = p
+            asked[cand[4:] if cand.startswith('/usr/') else '/usr' + cand] = p
+    out = subprocess.run(['dpkg', '-S', *asked], capture_output=True, text=True).stdout
+    packages, claimed = {}, set()
+    for line in out.splitlines():
+        pkg, sep, path = line.partition(': ')
+        p = asked.get(path.strip())
+        if sep and p and ',' not in pkg and 'diversion' not in pkg:
+            packages.setdefault(pkg.split(':')[0], set()).add(paths[p])
+            claimed.add(p)
+    unclaimed = sorted(paths[p] for p in paths if p not in claimed)
+    return {k: sorted(v) for k, v in sorted(packages.items())}, unclaimed
+
+
+def third_party_notices(binaries):
     rule = '=' * 72
     parts = [
         f'{APP} {VERSION} includes the software listed below. Each part is under\n'
@@ -44,14 +88,7 @@ def third_party_notices():
     def add(title, text):
         parts.append(f'\n{rule}\n{title}\n{rule}\n\n{text.strip()}\n')
 
-    py = 'python%d.%d' % sys.version_info[:2]
-    for path in (os.path.join(sys.base_prefix, 'LICENSE.txt'),
-                 os.path.join(sys.base_prefix, 'lib', py, 'LICENSE.txt')):
-        if os.path.isfile(path):
-            add(f'Python {platform.python_version()}', read(path))
-            break
-    else:
-        raise SystemExit("Python's LICENSE.txt was not found")
+    add(f'Python {platform.python_version()}', python_license())
     # Tcl/Tk come with Python's tkinter; not every Python's LICENSE.txt has them
     add('Tcl (the settings panel)', read(os.path.join(SPECPATH, 'licenses', 'tcl.txt')))
     add('Tk (the settings panel)', read(os.path.join(SPECPATH, 'licenses', 'tk.txt')))
@@ -60,9 +97,13 @@ def third_party_notices():
         try:
             dist = metadata.distribution(name)
         except metadata.PackageNotFoundError:
-            print(f'WARNING: {name} is not installed, so it is not in the notices')
-            continue
+            raise SystemExit(f'{name} is not installed, so its license is unknown; '
+                             'install requirements.txt (plain pygame is not supported)')
         if name == 'pygame-ce':
+            if dist.version.split('.')[:2] != PYGAME_CE_LICENSES_FROM.split('.')[:2]:
+                raise SystemExit(f'licenses/pygame-ce is from pygame-ce {PYGAME_CE_LICENSES_FROM} '
+                                 f'but this build uses {dist.version}: refresh it, see '
+                                 'licenses/README.md')
             if dist.version != PYGAME_CE_LICENSES_FROM:
                 print(f'WARNING: licenses/pygame-ce is from pygame-ce '
                       f'{PYGAME_CE_LICENSES_FROM}, this build uses {dist.version}')
@@ -82,33 +123,33 @@ def third_party_notices():
             p for p in files
             if os.path.basename(p).upper().startswith(('LICENSE', 'COPYING'))]
         chosen += [p for p in files if p.endswith('portaudio-binaries/README.md')]
+        if not chosen:
+            add(f'{name} {dist.version}', NOT_FOUND)
         for path in chosen:
             add(f'{name} {dist.version}: {path.split(".dist-info/licenses/")[-1]}',
-                (dist.locate_file(path)).read_text(encoding='utf-8'))
+                read(dist.locate_file(path)))
 
     add('PortAudio (audio input, used through sounddevice)',
         read(os.path.join(SPECPATH, 'licenses', 'portaudio.txt')))
-    debian = '/usr/share/doc/libportaudio2/copyright'   # the Linux build's copy
-    if os.path.isfile(debian):
-        add('libportaudio2 (Linux package)', read(debian))
+
+    if sys.platform.startswith('linux'):
+        packages, unclaimed = linux_system_libraries(binaries)
+        for pkg, libs in packages.items():
+            copyright_file = f'/usr/share/doc/{pkg}/copyright'
+            text = read(copyright_file) if os.path.isfile(copyright_file) else NOT_FOUND
+            add(f'{pkg} (Linux system package): {", ".join(libs)}', text)
+        if unclaimed:
+            print(f'WARNING: no package found for {", ".join(unclaimed)}')
+            add('Linux system libraries from no known package: ' + ', '.join(unclaimed),
+                NOT_FOUND)
     return ''.join(parts)
-
-
-notices_dir = os.path.join(SPECPATH, 'build', 'notices')
-os.makedirs(notices_dir, exist_ok=True)
-NOTICES = os.path.join(notices_dir, 'THIRD_PARTY_NOTICES.txt')
-LICENSE = os.path.join(notices_dir, 'LICENSE.txt')
-with open(NOTICES, 'w', encoding='utf-8', newline='\n') as f:
-    f.write(third_party_notices())
-shutil.copyfile(os.path.join(SPECPATH, 'LICENSE'), LICENSE)
 
 
 a = Analysis(
     [SCRIPT],
     pathex=[],
     binaries=[],
-    # macOS: data files go in Contents/Resources, inside the signed bundle
-    datas=[(NOTICES, '.'), (LICENSE, '.')] if sys.platform == 'darwin' else [],
+    datas=[],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
@@ -118,6 +159,19 @@ a = Analysis(
     optimize=0,
 )
 pyz = PYZ(a.pure)
+
+# the notices list what Analysis found to bundle, so they come after it
+notices_dir = os.path.join(SPECPATH, 'build', 'notices')
+os.makedirs(notices_dir, exist_ok=True)
+NOTICES = os.path.join(notices_dir, 'THIRD_PARTY_NOTICES.txt')
+LICENSE = os.path.join(notices_dir, 'LICENSE.txt')
+with open(NOTICES, 'w', encoding='utf-8', newline='\n') as f:
+    f.write(third_party_notices(a.binaries))
+shutil.copyfile(os.path.join(SPECPATH, 'LICENSE'), LICENSE)
+if sys.platform == 'darwin':
+    # data files go in Contents/Resources, inside the signed bundle
+    a.datas += [('THIRD_PARTY_NOTICES.txt', NOTICES, 'DATA'),
+                ('LICENSE.txt', LICENSE, 'DATA')]
 
 
 def make_exe(name, console):
