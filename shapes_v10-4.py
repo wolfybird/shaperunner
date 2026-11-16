@@ -15,7 +15,22 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
-shapes_v10-3.py – ShapeRunner: rotating 3D shapes drawn in ASCII
+shapes_v10-4.py – ShapeRunner: rotating 3D shapes drawn in ASCII
+
+v10.4 (2026-11)
+    - A run where audio can't work (no sound server, e.g. over SSH) keeps
+      the saved audio choices, and a terminal run keeps the saved window
+      size and fullscreen, instead of overwriting them
+    - Turning audio on when it can't start says why (key a, menu, panel)
+    - The PortAudio fix from v10.3 also works with sounddevice 0.4.6 and
+      older, whose error text could itself raise
+    - The help screen fits a standard 80x24 terminal again
+    - A broken settings.json no longer loads settings from the old
+      ASCII3DShapes folder
+    - --version works from the windowed Windows app
+    - Clearer message when pygame and pygame-ce are both installed
+    - Self-test exit codes tell "no audio library" (2) from "PortAudio
+      can't start" (3), and print the reason
 
 v10.3 (2026-11)
     - Starts with audio off instead of crashing when PortAudio is installed
@@ -84,7 +99,7 @@ from collections import deque
 from typing import List, Tuple, Callable, Optional
 
 APP_NAME = "ShapeRunner"
-APP_VERSION = "10.3"
+APP_VERSION = "10.4"
 COPYRIGHT = "Copyright (C) 2026 RFrank"
 SOURCE_URL = "https://github.com/wolfybird/shaperunner"
 LICENSE_LINES = ["Free software under the GNU GPL v3 or later, with NO WARRANTY.",
@@ -97,6 +112,15 @@ try:
 except ImportError:
     HAS_NUMPY = False
 
+def _error_text(e):
+    """str(e), which for sounddevice 0.4.6 and older can itself raise on
+    PortAudio host errors."""
+    try:
+        return str(e)
+    except Exception:
+        return str(e.args[0]) if e.args else type(e).__name__
+
+
 if getattr(sys, "frozen", False) and sys.platform.startswith("linux"):
     # sounddevice only asks the system for PortAudio; fall back to the copy
     # bundled with the app when the system has none
@@ -107,7 +131,8 @@ if getattr(sys, "frozen", False) and sys.platform.startswith("linux"):
     def _find_library(name):
         found = _system_find_library(name)
         if found is None and name == "portaudio":
-            bundled = glob.glob(os.path.join(sys._MEIPASS, "libportaudio.so*"))
+            bundled = glob.glob(os.path.join(glob.escape(sys._MEIPASS),
+                                             "libportaudio.so*"))
             found = bundled[0] if bundled else None
         return found
 
@@ -121,7 +146,7 @@ try:
 except (ImportError, OSError):  # OSError: PortAudio library not found
     pass
 except Exception as e:          # PortAudio is there but can't start, e.g. no
-    AUDIO_ERROR = str(e)        # sound server on Linux (sd.PortAudioError)
+    AUDIO_ERROR = _error_text(e)  # sound server on Linux (sd.PortAudioError)
 
 if not HAS_NUMPY:
     print(f"{APP_NAME} needs numpy: pip install numpy")
@@ -1238,6 +1263,7 @@ class AudioAnalyzer:
         self.device_index = None
         self.device_name = "Default"
         self.last_error = ""
+        self.notice = ""       # why turning audio on failed, shown once
         self._stream = None
         self._lock = threading.Lock()
         self._rms = 0.0
@@ -1274,7 +1300,13 @@ class AudioAnalyzer:
             return True
         except Exception as e:
             self.running = False
-            self.last_error = str(e)
+            self.last_error = _error_text(e)
+            if self._stream is not None:      # made but failed to start
+                try:
+                    self._stream.close()
+                except Exception:
+                    pass
+                self._stream = None
             return False
 
     def stop(self):
@@ -1352,10 +1384,9 @@ def list_audio_devices():
     try:
         devices = sd.query_devices()
         hostapis = sd.query_hostapis()
+        api = hostapis[_listed_hostapi(hostapis)]
     except Exception:
         return [], []
-    api_idx = _listed_hostapi(hostapis)
-    api = hostapis[api_idx]
     inputs = []
     outputs = []
     for i in api["devices"]:
@@ -1580,12 +1611,22 @@ class Setting:
         return self._choices[self.get() % len(self._choices)]
 
 
+def audio_off_reason():
+    if AUDIO_ERROR:
+        return "Audio is off: PortAudio couldn't start. Press A for details."
+    if not HAS_AUDIO:
+        return "Audio needs sounddevice and PortAudio. Press A for details."
+    return f"Couldn't start audio: {audio.last_error}"
+
+
 def _set_audio(on):
+    """Audio on or off, from the a key, the menu or the panel."""
     config.audio_reactive = on
     if not on:
         audio.stop()
     elif not audio.running and not audio.start():
         config.audio_reactive = False
+        audio.notice = audio_off_reason()
 
 
 def _set_adapt(on):
@@ -1679,8 +1720,10 @@ def load_saved():
             with open(os.path.join(settings_dir(folder), "settings.json"),
                       encoding="utf-8") as f:
                 data = json.load(f)
+        except FileNotFoundError:
+            continue              # none here: try the old folder
         except (OSError, ValueError):
-            continue
+            return {}             # unreadable or broken: start from defaults
         return data if isinstance(data, dict) else {}
     return {}
 
@@ -1694,8 +1737,11 @@ def restore_settings(settings, data):
                 pass
 
 
-def save_settings(settings, extra):
-    data = {s.key: s.get() for s in settings if s.key not in NOT_SAVED}
+def save_settings(settings, extra, keep=None):
+    """keep: the settings loaded at start. Keys this run doesn't write, like
+    the window size after a terminal run, are carried over from it."""
+    data = dict(keep or {})
+    data.update({s.key: s.get() for s in settings if s.key not in NOT_SAVED})
     data.update(extra)
     path = os.path.join(settings_dir(), "settings.json")
     try:
@@ -1860,9 +1906,8 @@ def overlay_content(ov, settings, frontend):
     else:
         title = "Help"
         rows = [(line, None, False) for line in HELP_LINES]
-        footer = [f"{APP_NAME} v{APP_VERSION}  {COPYRIGHT}",
-                  *LICENSE_LINES,
-                  "Any key or click closes this"]
+        footer = [f"{APP_NAME} v{APP_VERSION}  {COPYRIGHT}  GPL v3+, NO WARRANTY",
+                  f"Source: {SOURCE_URL.split('://')[-1]}   Any key or click closes"]
     return title, rows, footer
 
 
@@ -2081,13 +2126,7 @@ def handle_common_key(ch):
         config.depth_invert = not config.depth_invert
         return True
     elif ch == "a":
-        config.audio_reactive = not config.audio_reactive
-        if config.audio_reactive:
-            if not audio.running:
-                if not audio.start():
-                    config.audio_reactive = False
-        else:
-            audio.stop()
+        _set_audio(not config.audio_reactive)
         return True
     elif ch == "g":
         config.audio_onset_mode = (
@@ -2266,6 +2305,7 @@ def run(frontend, saved):
     fps_tracker.effective_density = config.density.value
     if config.audio_reactive and not audio.start():
         config.audio_reactive = False
+        audio.notice = audio_off_reason()
 
     scr = ScreenBuffer(WIDTH, HEIGHT)
     overlay = Overlay()
@@ -2416,6 +2456,11 @@ def run(frontend, saved):
                     if do_action(act):
                         return
 
+            if audio.notice:
+                message = (audio.notice, now + 6)
+                panel.notice = audio.notice
+                audio.notice = ""
+
             if config.shape_index != shape_before:
                 last_switch = now        # a picked shape stays a while
 
@@ -2530,8 +2575,12 @@ def run(frontend, saved):
     finally:
         extra = {"fov_fit": config.fov.value / fov_for_size(WIDTH, HEIGHT),
                  "audio_device": audio.device_name}
+        if not HAS_AUDIO:
+            # audio can't work here (e.g. no sound server over SSH): keep the
+            # choices saved by a run where it could
+            extra.update({k: saved[k] for k in ("audio", "audio_device") if k in saved})
         extra.update(frontend.saved_state())
-        save_settings(settings, extra)
+        save_settings(settings, extra, keep=saved)
         panel.close()
         audio.stop()
 
@@ -3062,13 +3111,29 @@ def run_panel():
 
 # ── Start-up ──────────────────────────────────────────
 
+def _both_pygames():
+    """pygame and pygame-ce both installed: they share the pygame folder."""
+    try:
+        from importlib import metadata
+        metadata.distribution("pygame")
+        metadata.distribution("pygame-ce")
+        return True
+    except Exception:
+        return False
+
+
 def window_unavailable():
     """Why the window can't open here, or "" if it can."""
     try:
         os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")
         import pygame  # noqa: F401
-    except ImportError:
-        return "pygame is not installed (pip install pygame-ce)"
+    except Exception as e:
+        if _both_pygames():
+            return ("pygame and pygame-ce are both installed and clash (pip "
+                    "uninstall -y pygame pygame-ce, then pip install pygame-ce)")
+        if isinstance(e, ImportError) and e.name == "pygame":
+            return "pygame is not installed (pip install pygame-ce)"
+        return f"pygame couldn't load ({_error_text(e)})"
     if sys.platform.startswith("linux") and not (
             os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")):
         return "no graphical display was found"
@@ -3090,6 +3155,20 @@ def open_console():
         return False
 
 
+def show_text_windowed(text):
+    """Windowed Windows build: write to the console it was started from,
+    or show a message box when there is none."""
+    try:
+        import ctypes
+        if ctypes.windll.kernel32.AttachConsole(-1):   # ATTACH_PARENT_PROCESS
+            with open("CONOUT$", "w", encoding="utf-8", errors="replace") as out:
+                out.write("\n" + text + "\n")
+        else:
+            ctypes.windll.user32.MessageBoxW(None, text, APP_NAME, 0x40)
+    except (AttributeError, OSError):
+        pass
+
+
 def selftest():
     """Draw every shape offscreen and check the optional parts load; used
     by the build workflow on each OS. Returns the exit code."""
@@ -3109,7 +3188,13 @@ def selftest():
     print(f"selftest ok: {len(SHAPE_DEFS)} shapes drawn at {WIDTH}x{HEIGHT}, "
           f"font {os.path.basename(fe.font_path or 'pygame default')}, "
           f"audio {'yes' if HAS_AUDIO else 'NO'}, tkinter yes")
-    return 0 if HAS_AUDIO else 2
+    if HAS_AUDIO:
+        return 0
+    if AUDIO_ERROR:                   # PortAudio found but couldn't start
+        print(f"audio: PortAudio couldn't start: {AUDIO_ERROR}")
+        return 3
+    print("audio: sounddevice or PortAudio is missing")
+    return 2
 
 
 def main():
@@ -3131,7 +3216,11 @@ def main():
     args, _ = parser.parse_known_args()  # macOS may add -psn_... from Finder
 
     if args.version:
-        print("\n".join([f"{APP_NAME} {APP_VERSION}", COPYRIGHT, *LICENSE_LINES]))
+        text = "\n".join([f"{APP_NAME} {APP_VERSION}", COPYRIGHT, *LICENSE_LINES])
+        if no_console and os.name == "nt":
+            show_text_windowed(text)
+        else:
+            print(text)
         return
 
     if args.panel:

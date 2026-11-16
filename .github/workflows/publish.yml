@@ -38,14 +38,22 @@ jobs:
           python -m twine check dist/*
 
       # PortAudio is installed but this runner has no sound server, so it
-      # can't start: the self-test must still pass, reporting audio as
-      # unavailable (exit code 2). A crash is exit code 1 and fails the run.
+      # can't start: the self-test must report exactly that (exit code 3)
+      # and keep going. Audio missing altogether (2) or a crash (1) fails
+      # the run, and so does audio working (0), which would mean this test
+      # no longer covers the can't-start case.
       - name: Install it and self-test
         run: |
-          sudo apt-get update && sudo apt-get install -y libportaudio2
+          sudo apt-get update
+          sudo apt-get install -y libportaudio2
           python -m pip install dist/*.whl
           shaperunner --version
-          shaperunner --selftest || test $? -eq 2
+          code=0
+          shaperunner --selftest || code=$?
+          if [ "$code" -ne 3 ]; then
+            echo "::error::expected self-test exit code 3 (PortAudio can't start), got $code"
+            exit 1
+          fi
 
       - uses: actions/upload-artifact@v7
         with:

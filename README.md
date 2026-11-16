@@ -21,6 +21,10 @@ Ubuntu and Debian), use [pipx](https://pipx.pypa.io) instead:
 `pipx install shaperunner`. On Linux, audio mode also needs PortAudio
 (`sudo apt install libportaudio2`).
 
+ShapeRunner uses pygame-ce for its window. If plain `pygame` is installed
+in the same environment, remove it first (`pip uninstall pygame`): both
+use the same `pygame` folder and break each other.
+
 ### Ready-made apps
 
 No Python needed. GitHub Actions builds the apps (see [Build](#build)).
@@ -62,8 +66,8 @@ launcher.
 ### From source
 
     pip install -r requirements.txt
-    python shapes_v10-3.py              # in its own window
-    python shapes_v10-3.py --terminal   # in this terminal
+    python shapes_v10-4.py              # in its own window
+    python shapes_v10-4.py --terminal   # in this terminal
 
 `pygame-ce` gives the window (plain `pygame` works too, but has no
 installs for Python 3.14 and newer); without it the program runs in the
@@ -136,7 +140,7 @@ to the defaults.
 
 ## Versions
 
-`shapes_v10-3.py` is the current version, a single self-contained file.
+`shapes_v10-4.py` is the current version, a single self-contained file.
 Each version is developed as a new numbered copy; older ones are kept
 outside the repo (they are still in the git history).
 

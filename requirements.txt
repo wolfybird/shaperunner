@@ -1,3 +1,3 @@
 numpy
 pygame-ce     # the window (imports as pygame); without it the app runs in the terminal
-sounddevice   # optional: audio reactivity
+sounddevice>=0.4.7   # optional: audio reactivity
