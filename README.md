@@ -59,9 +59,11 @@ alone.
    folder: `Run ShapeRunner.bat` on Windows,
    `Run ShapeRunner.command` on macOS, `./run_shaperunner.sh` on Linux.
 
-If Python is missing, the installer explains how to get it. Running it
-again updates the packages. To remove it, delete the `.venv` folder and the
-launcher.
+If Python is missing, the installer explains how to get it. The launcher
+always starts the newest version in the folder, so after an update (a newer
+ZIP unpacked over the old one, or `git pull`) it runs the new version
+straight away. Running the installer again updates the packages. To remove
+it, delete the `.venv` folder and the launcher.
 
 ### From source
 
