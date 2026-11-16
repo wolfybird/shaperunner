@@ -7,6 +7,11 @@ Python programs are not touched), installs the packages the program needs
 there, and creates a launcher you can double-click. Running it again is
 safe: it reuses what is there and updates the packages.
 
+The launcher runs "install.py --start", which starts the newest
+shapes_v*.py in this folder, so after an update (a newer download or a
+git pull) it runs the new version without setting up again. Run the setup
+again to update the packages.
+
 To undo it, delete the .venv folder and the launcher it made.
 
 Start it with install_windows.bat, install_mac.command or install_linux.sh,
@@ -23,6 +28,9 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 VENV = os.path.join(HERE, ".venv")
 STEPS = 4
+# launchers made before the program was renamed ShapeRunner (v10.1)
+OLD_LAUNCHERS = ["Run ASCII 3D Shapes.bat", "Run ASCII 3D Shapes.command",
+                 "run_ascii3dshapes.sh"]
 
 
 def say(text=""):
@@ -63,6 +71,40 @@ def runs(cmd):
                           stderr=subprocess.DEVNULL).returncode == 0
 
 
+def start_newest(args):
+    """What the launcher runs: the newest shapes_v*.py, with these args."""
+    script = newest_script()
+    if script is None:
+        say("There is no shapes_v*.py file next to install.py.")
+        return 1
+    cmd = [sys.executable, os.path.join(HERE, script)] + args
+    os.chdir(HERE)
+    if os.name != "nt":
+        os.execv(sys.executable, cmd)        # becomes the program
+    proc = subprocess.Popen(cmd)
+    while True:
+        try:
+            return proc.wait()
+        except KeyboardInterrupt:            # Ctrl+C is the program's to handle
+            continue
+
+
+def audio_problem(py):
+    """Why sounddevice doesn't load in the .venv, as ("", "") when it does,
+    or (kind, detail) with kind "missing", "start" or "broken"."""
+    r = subprocess.run([py, "-c", "import sounddevice"], cwd=HERE,
+                       capture_output=True, text=True)
+    if r.returncode == 0:
+        return "", ""
+    lines = r.stderr.strip().splitlines()
+    last = lines[-1] if lines else f"exit code {r.returncode}"
+    if "PortAudio library not found" in last:
+        return "missing", last
+    if "PortAudioError" in last:
+        return "start", last
+    return "broken", last
+
+
 def pip_install(py, package):
     """Install or update one package; returns the error text, or ""."""
     r = subprocess.run([py, "-m", "pip", "install", "--upgrade", "--quiet",
@@ -98,14 +140,15 @@ def make_venv():
     return py
 
 
-def write_launcher(script):
-    """Create the double-click launcher for this OS; returns its name."""
+def write_launcher():
+    """Create the double-click launcher for this OS; returns its name.
+    It starts the newest version through install.py --start."""
     if os.name == "nt":
         name = "Run ShapeRunner.bat"
         text = ("@echo off\r\n"
                 "cd /d \"%~dp0\"\r\n"
                 "title ShapeRunner\r\n"
-                f"\".venv\\Scripts\\python.exe\" {script} --terminal\r\n"
+                "\".venv\\Scripts\\python.exe\" install.py --start --terminal\r\n"
                 "if errorlevel 1 pause\r\n")
     else:
         name = ("Run ShapeRunner.command" if sys.platform == "darwin"
@@ -113,12 +156,17 @@ def write_launcher(script):
         text = ("#!/bin/bash\n"
                 "cd \"$(dirname \"$0\")\" || exit 1\n"
                 "printf '\\e[8;55;180t'    # ask the terminal for a bigger window\n"
-                f".venv/bin/python {script} --terminal\n")
+                ".venv/bin/python install.py --start --terminal\n")
     path = os.path.join(HERE, name)
     with open(path, "w", newline="") as f:
         f.write(text)
     if os.name != "nt":
         os.chmod(path, os.stat(path).st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+    for old in OLD_LAUNCHERS:
+        try:
+            os.remove(os.path.join(HERE, old))
+        except OSError:
+            pass
     return name
 
 
@@ -150,22 +198,26 @@ def main():
     if err:
         audio_note = "Audio mode is off: sounddevice didn't install."
         say(f"  Skipped. The program works without it.\n    {err}")
-    elif not runs([py, "-c", "import sounddevice"]):
-        if runs([py, "-c", "import ctypes.util, sys; "
-                 "sys.exit(not ctypes.util.find_library('portaudio'))"]):
-            audio_note = ("Audio mode is off: PortAudio is installed but couldn't "
-                          "start (is a sound server running?).")
-        else:
+    else:
+        kind, detail = audio_problem(py)
+        if kind == "missing":
             audio_note = "Audio mode is off until PortAudio is installed."
             if sys.platform.startswith("linux"):
                 audio_note += " On Ubuntu, Debian or Mint:  sudo apt install libportaudio2"
-        say(f"  Installed, but it can't load yet. {audio_note}")
-    else:
-        say("  Done.")
+        elif kind == "start":
+            audio_note = "Audio mode is off: PortAudio is installed but couldn't start."
+            if sys.platform.startswith("linux"):
+                audio_note += " Is a sound server (PipeWire or PulseAudio) running?"
+        elif kind == "broken":
+            audio_note = "Audio mode is off: sounddevice didn't load."
+        if kind:
+            say(f"  Installed, but it can't load yet. {audio_note}\n    {detail}")
+        else:
+            say("  Done.")
 
     step(4, "Creating the launcher")
-    launcher = write_launcher(script)
-    say(f"  Made \"{launcher}\".")
+    launcher = write_launcher()
+    say(f"  Made \"{launcher}\". It always starts the newest version here.")
 
     say("\n" + "=" * 36)
     say("All set!")
@@ -183,4 +235,6 @@ def main():
 
 
 if __name__ == "__main__":
+    if sys.argv[1:2] == ["--start"]:
+        sys.exit(start_newest(sys.argv[2:]))
     main()
