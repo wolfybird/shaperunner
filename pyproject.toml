@@ -27,7 +27,8 @@ classifiers = [
 dependencies = [
     "numpy",
     "pygame-ce",      # the window (has wheels for new Pythons; imports as pygame)
-    "sounddevice",    # audio mode; Linux also needs PortAudio (libportaudio2)
+    "sounddevice>=0.4.7",   # audio; Linux also needs PortAudio (libportaudio2).
+                            # Older ones can crash on a PortAudio start error
 ]
 
 [project.urls]
@@ -38,14 +39,14 @@ Issues = "https://github.com/wolfybird/shaperunner/issues"
 shaperunner = "shaperunner:main"
 
 [tool.hatch.version]
-path = "shapes_v10-3.py"                                    # CURRENT
+path = "shapes_v10-4.py"                                    # CURRENT
 pattern = 'APP_VERSION = "(?P<version>[^"]+)"'
 
 [tool.hatch.build.targets.wheel]
 bypass-selection = true
 
 [tool.hatch.build.targets.wheel.force-include]
-"shapes_v10-3.py" = "shaperunner.py"                        # CURRENT
+"shapes_v10-4.py" = "shaperunner.py"                        # CURRENT
 
 [tool.hatch.build.targets.sdist]
-include = ["/shapes_v10-3.py", "/README.md", "/LICENSE", "/pyproject.toml"]   # CURRENT
+include = ["/shapes_v10-4.py", "/README.md", "/LICENSE", "/pyproject.toml"]   # CURRENT
