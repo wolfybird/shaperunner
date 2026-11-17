@@ -68,8 +68,8 @@ it, delete the `.venv` folder and the launcher.
 ### From source
 
     pip install -r requirements.txt
-    python shapes_v10-4.py              # in its own window
-    python shapes_v10-4.py --terminal   # in this terminal
+    python shapes_v10-5.py              # in its own window
+    python shapes_v10-5.py --terminal   # in this terminal
 
 `pygame-ce` gives the window (plain `pygame` works too, but has no
 installs for Python 3.14 and newer); without it the program runs in the
@@ -100,6 +100,7 @@ dropdowns.
 | `+` `-` | scale |
 | `f` `F` | field of view |
 | `[` `]` | rotation speed |
+| `{` `}` | rotation speed while audio is on (follows the beat; 0.1x to 5x) |
 | `d` `D` | density |
 | `p` | wireframe / points |
 | `c` / `C` / `i` | color mode / depth palette / invert depth |
@@ -142,7 +143,7 @@ to the defaults.
 
 ## Versions
 
-`shapes_v10-4.py` is the current version, a single self-contained file.
+`shapes_v10-5.py` is the current version, a single self-contained file.
 Each version is developed as a new numbered copy; older ones are kept
 outside the repo (they are still in the git history).
 
@@ -169,7 +170,7 @@ When a newer version should ship, update the `SCRIPT` and `VERSION` lines in
 the spec and the three lines marked `CURRENT` in `pyproject.toml`.
 `python .github/check_versions.py` checks they agree with the script, and
 the build runs it too. A version tag must match the script's `APP_VERSION`
-(`git tag v10.4 && git push origin v10.4` for `"10.4"`); to rebuild a version
+(`git tag v10.5 && git push origin v10.5` for `"10.5"`); to rebuild a version
 without a new one, run **Build apps** by hand. **Publish to PyPI** on the
 Actions tab uploads the pip package when run by hand.
 
