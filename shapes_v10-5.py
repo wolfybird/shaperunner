@@ -15,7 +15,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
-shapes_v10-4.py – ShapeRunner: rotating 3D shapes drawn in ASCII
+shapes_v10-5.py – ShapeRunner: rotating 3D shapes drawn in ASCII
+
+v10.5 (2026-11)
+    - Audio spin: how fast auto-rotation turns while audio reacts, as a
+      multiple (0.1x to 5x) of its speed from the beat, so it stays in
+      time with the music. Keys { and }, in the menu and in the
+      panel's Audio group, and saved with the other settings
 
 v10.4 (2026-11)
     - A run where audio can't work (no sound server, e.g. over SSH) keeps
@@ -99,7 +105,7 @@ from collections import deque
 from typing import List, Tuple, Callable, Optional
 
 APP_NAME = "ShapeRunner"
-APP_VERSION = "10.4"
+APP_VERSION = "10.5"
 COPYRIGHT = "Copyright (C) 2026 RFrank"
 SOURCE_URL = "https://github.com/wolfybird/shaperunner"
 LICENSE_LINES = ["Free software under the GNU GPL v3 or later, with NO WARRANTY.",
@@ -387,6 +393,9 @@ class Config:
         self.depth_range = Param("DRng", 6.0, 1.0, 20.0, 0.5, ".1f", "z", "Z")
         self.audio_sens = Param("Sens", 1.3, 0.1, 5.0, 1.15, ".1f", "n", "N",
                                 multiplicative=True)
+        # auto-rotation speed while audio reacts, times the beat's speed
+        self.audio_spin = Param("ASpin", 1.0, 0.1, 5.0, 1.15, ".2f", "{", "}",
+                                multiplicative=True)
 
         self.shape_index = 0
         self.paused = False
@@ -405,7 +414,8 @@ class Config:
         self.fps_adapt = False
 
         self.all_params = [self.scale, self.fov, self.speed_x, self.density,
-                           self.auto_switch, self.depth_range, self.audio_sens]
+                           self.auto_switch, self.depth_range, self.audio_sens,
+                           self.audio_spin]
 
     @property
     def color_mode(self):
@@ -1534,7 +1544,7 @@ def build_hud_line2():
 
 HELP_ITEMS = [
     "Spc=pause", "0-9=shape(x2=var)", "Shift+0-9=shpColor", "Arrows=rotXY",
-    "<>/,.=rotZ", "r=reset", "o=autorot", "+/-=scl", "f/F=fov", "[/]=spd",
+    "<>/,.=rotZ", "r=reset", "o=autorot", "+/-=scl", "f/F=fov", "[/]=spd", "{/}=audspd",
     "d/D=den", "p=points", "b=brt", "B=ramp", "c=color", "C=pal", "i=inv",
     "z/Z=depth", "s/S=auto", "a=audio", "n/N=sens", "g=onset", "A=dev",
     "R=res", "t=adapt", "h=hud", "m=menu", "P=panel", "?=help",
@@ -1671,6 +1681,7 @@ def build_settings():
         param("auto_switch", "Auto switch", c.auto_switch),
         param("depth_range", "Depth range", c.depth_range),
         param("audio_sens", "Audio sens", c.audio_sens),
+        param("audio_spin", "Audio spin", c.audio_spin),
         toggle("auto_rotate", "Auto rotate", "auto_rotate"),
         toggle("paused", "Paused", "paused"),
         toggle("brightness", "Brightness", "brightness_enabled"),
@@ -1788,9 +1799,9 @@ HELP_LINES = [
     "  F11 or Alt+Enter fullscreen (window)   Esc close / leave",
     "  0-9 shape (again = variant)   Shift+0-9 shape color",
     "  Arrows rotate X/Y   < > or , . rotate Z   r reset   o auto-rotate",
-    "  + - scale   f F field of view   [ ] speed   d D density",
+    "  + - scale   f F field of view   [ ] speed   { } speed with audio",
     "  p wire/points   b brightness   B ramp   z Z depth range",
-    "  c color mode   C palette   i invert depth",
+    "  c color mode   C palette   i invert depth   d D density",
     "  s S auto-switch time   t adaptive density   R resolution",
     "  a audio on/off   A input device   n N sensitivity   g onsets",
 ]
@@ -2557,7 +2568,7 @@ def run(frontend, saved):
             if (not config.paused and config.auto_rotate
                     and not getattr(frontend, "dragging", False)):
                 if config.audio_reactive and audio.running:
-                    bps = audio_bpm / 60.0
+                    bps = audio_bpm / 60.0 * config.audio_spin.value
                     view.ax += bps * 1.0 * dt
                     view.ay += bps * 0.83 * dt
                 else:
@@ -2920,7 +2931,7 @@ class WindowFrontend:
 PANEL_GROUPS = [
     ("Shape", ["shape", "render", "auto_switch", "paused"]),
     ("Motion", ["auto_rotate", "speed", "scale", "fov"]),
-    ("Audio", ["audio", "audio_device", "audio_sens", "onset"]),
+    ("Audio", ["audio", "audio_device", "audio_sens", "audio_spin", "onset"]),
     ("Look", ["color_mode", "palette", "shape_color", "invert", "brightness",
               "ramp", "density", "depth_range"]),
     ("Display", ["resolution", "hud", "adapt"]),
